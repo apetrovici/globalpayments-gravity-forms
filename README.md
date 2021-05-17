@@ -1,4 +1,4 @@
-# Global Payments Gateway Provider for Gravity Forms
+# Global Payments Gravity Forms
 
 ## Installation
 
