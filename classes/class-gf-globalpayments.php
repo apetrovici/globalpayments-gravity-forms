@@ -1,6 +1,7 @@
 <?php
 
 use GlobalPayments\Api\Entities\Exceptions\ApiException;
+use GlobalPayments\PaymentGatewayProvider\Data\Order;
 use GlobalPayments\PaymentGatewayProvider\Gateways\HeartlandGateway;
 use GlobalPayments\PaymentGatewayProvider\Gateways\TransitGateway;
 
@@ -254,19 +255,19 @@ class GFGlobalPayments extends GFPaymentAddOn
                 'name' => 'authorize_or_charge',
                 'label' => __('Payment Action', $this->_slug),
                 'type' => 'select',
-                'default_value' => 'capture',
+                'default_value' => 'charge',
                 'tooltip' => __(
                     'Choose whether you wish to capture funds immediately or authorize payment only.',
                     $this->_slug
                 ),
                 'choices' => array(
                      array(
-                        'label' => __('Capture', $this->_slug),
-                        'value' => 'capture',
-                        'selected' => $this->getPaymentAction() == 'capture',
+                        'label' => __('Authorize + Capture', $this->_slug),
+                        'value' => 'charge',
+                        'selected' => $this->getPaymentAction() == 'charge',
                     ),
                     array(
-                        'label' => __('Authorize', $this->_slug),
+                        'label' => __('Authorize only', $this->_slug),
                         'value' => 'authorize',
                         'selected' => $this->getPaymentAction() == 'authorize',
                     ),
@@ -572,7 +573,7 @@ class GFGlobalPayments extends GFPaymentAddOn
         $submission_data = array_merge($submission_data, $this->get_submission_data($feed, $form, $entry));
         $isCCData = $this->getGlobalPaymentsJsResponse();
 
-        if (false === $this->isCC || empty($isCCData->token_value)) {
+        if (false === $this->isCC || empty($isCCData->paymentReference)) {
             return $auth;
         }
 
@@ -597,7 +598,7 @@ class GFGlobalPayments extends GFPaymentAddOn
             $order->billingAddress = $this->buildAddress($feed, $submission_data, $entry);
             $order->currency = GFCommon::get_currency();
             $order->amount = $submission_data['payment_amount'];
-            $order->cardData = array( 'token' => $response->paymentReference );
+            $order->cardData = $response;
 
             $transaction = $gateway->processPayment($order);
 
@@ -756,12 +757,16 @@ class GFGlobalPayments extends GFPaymentAddOn
     public function populateCreditCardLastFour($form)
     {
         $cc_field = $this->get_credit_card_field($form);
+        if (false === $cc_field) {
+            return;
+        }
+
         $response = $this->getGlobalPaymentsJsResponse();
         $_POST[ 'input_' . $cc_field['id'] . '_1' ] = 'XXXXXXXXXXXX' . ($response != null
-                ? $response->last_four
+                ? $response->details->cardLast4
                 : '');
         $_POST[ 'input_' . $cc_field['id'] . '_4' ] = ($response != null
-            ? $response->card_type
+            ? $response->details->cardType
             : '');
     }
 
@@ -941,15 +946,15 @@ class GFGlobalPayments extends GFPaymentAddOn
     {
         $page = 0;
         foreach ($validationResult['form']['fields'] as $field) {
-            if ($field->type == 'gpcreditcard') {
+            if ($field->type == 'gpcreditcard' && !$authorizationResult['is_authorized']) {
                 $field->failed_validation  = true;
-                $field->validation_message = $authorizationResult['error_message'];
+                $field->validation_message = $authorizationResult['error_message'] ?? '';
                 $page                      = $field->pageNumber;
                 break;
             }
         }
         $validationResult['credit_card_page'] = $page;
-        $validationResult['is_valid']         = false;
+        $validationResult['is_valid']         = true;
         return parent::get_validation_result($validationResult, $authorizationResult);
     }
 

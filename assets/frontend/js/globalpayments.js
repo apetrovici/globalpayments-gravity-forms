@@ -256,12 +256,16 @@
                 // Clear any potentially lingering elements
                 $('#globalpayments_response').remove();
 
-                var $form = $('#gform_' + this.formId);
+                var that = this;
 
                 // Add tokenization response to the form
                 this.cardForm.frames["card-cvv"].getCvv().then(function (c) {
-                    response.details.cardSecurityCode = c || response.details.cardSecurityCode;
-                    this.createGlobalPaymentsResponseNode($.toJSON(response));
+                    if (!response.error) {
+                        response.details.cardSecurityCode = c || response.details.cardSecurityCode;
+                    }
+
+                    that.createGlobalPaymentsResponseNode($.toJSON(response));
+                    var $form = $('#gform_' + that.formId);
                     $form.submit();
                 });
             }

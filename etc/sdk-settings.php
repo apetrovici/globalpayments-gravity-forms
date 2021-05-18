@@ -10,11 +10,11 @@ return array(
         'type' => 'select',
         'onchange' => "GlobalPaymentsAdmin.toggleGatewaySettings(this.value);",
         'choices' => array(
-            // array(
-            //     'label' => __('Heartland Portico', 'global-payments-gateway-provider-for-gravity-forms'),
-            //     'value' => 'portico',
-            //     'selected' => true,
-            // ),
+            array(
+                'label' => __('Heartland Portico', 'global-payments-gateway-provider-for-gravity-forms'),
+                'value' => 'portico',
+                'selected' => true,
+            ),
             array(
                 'label' => __('TSYS Transit', 'global-payments-gateway-provider-for-gravity-forms'),
                 'value' => 'transit',
@@ -76,7 +76,7 @@ return array(
         'name' => 'authorize_or_charge',
         'label' => __('Payment Action', 'global-payments-gateway-provider-for-gravity-forms'),
         'type' => 'select',
-        'default_value' => 'capture',
+        'default_value' => 'charge',
         'tooltip' => __(
             'Choose whether you wish to capture funds immediately or authorize payment only.',
             'global-payments-gateway-provider-for-gravity-forms'
@@ -84,7 +84,7 @@ return array(
         'choices' => array(
             array(
                 'label' => __('Authorize + Capture', 'global-payments-gateway-provider-for-gravity-forms'),
-                'value' => 'capture',
+                'value' => 'charge',
                 'selected' => true,
             ),
            array(
