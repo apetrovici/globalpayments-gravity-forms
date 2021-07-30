@@ -1207,7 +1207,7 @@ class GFGlobalPayments extends GFPaymentAddOn
         return include plugin_dir_path(__DIR__) . 'etc/avs-cvv-settings.php';
     }
     
-    public function checkAvsCvvResults($settings, $transaction, $amount){
+    public function checkAvsCvvResults($transaction, $amount){
         $settings = $this->get_plugin_settings();
         $checkAvsCvv = $this->get_setting("check_avs_cvv", '', $settings);
         if($checkAvsCvv === 'yes'){      
