@@ -1,5 +1,6 @@
 <?php
 
+use GlobalPayments\Api\Entities\Transaction;
 use GlobalPayments\Api\Entities\Exceptions\ApiException;
 use GlobalPayments\PaymentGatewayProvider\Data\Order;
 use GlobalPayments\PaymentGatewayProvider\Gateways\HeartlandGateway;
@@ -180,6 +181,10 @@ class GFGlobalPayments extends GFPaymentAddOn
             array(
                 'title' => __('Velocity Limits', $this->_slug),
                 'fields' => $this->vmcSettingsFields(),
+            ),
+            array(
+                'title' => __('AVS/CVV Settings', $this->_slug),
+                'fields' => $this->avsCvvSettingsFields(),
             ),
         );
     }
@@ -601,6 +606,9 @@ class GFGlobalPayments extends GFPaymentAddOn
             $order->cardData = $response;
 
             $transaction = $gateway->processPayment($order);
+            
+            //reverse incase of avs/cvv failure
+            $this->checkAvsCvvResults($transaction, $submission_data['payment_amount']);            
 
             do_action('globalpayments_gravityforms_transaction_success', $form, $entry, $transaction, $response);
             self::get_instance()->transaction_response = $transaction;
@@ -1187,6 +1195,38 @@ class GFGlobalPayments extends GFPaymentAddOn
                     $e->getMessage(),
                     MINUTE_IN_SECONDS * $fraud_velocity_timeout
                 );
+            }
+        }
+    }
+    
+    /**
+     * @return array
+     */
+    public function avsCvvSettingsFields()
+    {
+        return include plugin_dir_path(__DIR__) . 'etc/avs-cvv-settings.php';
+    }
+    
+    public function checkAvsCvvResults($settings, $transaction, $amount){
+        $settings = $this->get_plugin_settings();
+        $checkAvsCvv = $this->get_setting("check_avs_cvv", '', $settings);
+        if($checkAvsCvv === 'yes'){      
+            $avsRejectConditions = $this->get_setting("avs_reject_conditions", '', $settings);        
+            $cvnRejectConditions = $this->get_setting("cvn_reject_conditions", '', $settings);
+            
+            //reverse incase of AVS/CVN failure
+            if(!empty($transaction->transactionReference->transactionId)){
+                if(!empty($transaction->avsResponseCode) || !empty($transaction->cvnResponseCode)){               
+                    //check admin selected decline condtions
+                    if(in_array($transaction->avsResponseCode, $avsRejectConditions) ||
+                    in_array($transaction->cvnResponseCode, $cvnRejectConditions)){
+                        Transaction::fromId( $transaction->transactionReference->transactionId )
+                        ->reverse( $amount )
+                        ->execute();
+                        
+                        throw new Exception('Transaction failed due to AVS/CVV failure. Contact merchant!');
+                    }
+                }
             }
         }
     }
