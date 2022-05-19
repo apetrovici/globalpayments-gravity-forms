@@ -3,12 +3,12 @@
  * Plugin Name: Global Payments Gravity Forms
  * Plugin URI: https://developer.heartlandpaymentsystems.com/
  * Description: Integrates Gravity Forms with some of Global Payments' payment gateways, enabling end users to purchase goods and services through Gravity Forms.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Global Payments
  * Author URI: https://developer.heartlandpaymentsystems.com/
  */
 
-define('GF_SECURESUBMIT_VERSION', '1.0.0');
+define('GF_SECURESUBMIT_VERSION', '1.1.0');
 
 add_action('gform_loaded', array('GF_GlobalPayments_Bootstrap', 'load'), 5);
 

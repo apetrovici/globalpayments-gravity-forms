@@ -266,7 +266,7 @@
 
                     that.createGlobalPaymentsResponseNode($.toJSON(response));
                     var $form = $('#gform_' + that.formId);
-                    $form.submit();
+                    $form[0].submit();
                 });
             }
 
