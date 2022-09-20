@@ -2,6 +2,7 @@
 
 $gatewayPorticoClasses = 'medium gateway-setting gateway-portico';
 $gatewayTransitClasses = 'medium gateway-setting gateway-transit';
+$gatewayTransitClasses = 'medium gateway-setting gateway-gpapi';
 
 return array(
     array(
@@ -19,8 +20,25 @@ return array(
                 'label' => __('TSYS Transit', 'global-payments-gateway-provider-for-gravity-forms'),
                 'value' => 'transit',
             ),
+	        array(
+		        'label' => __('GP API', 'global-payments-gateway-provider-for-gravity-forms'),
+		        'value' => 'gpapi',
+	        ),
         ),
     ),
+	// GP api settings
+	array(
+		'name' => 'public_api_key',
+		'label' => __('Public Key', 'global-payments-gateway-provider-for-gravity-forms'),
+		'type' => 'text',
+		'class' => $gatewayPorticoClasses,
+	),
+	array(
+		'name' => 'secret_api_key',
+		'label' => __('Secret Key', 'global-payments-gateway-provider-for-gravity-forms'),
+		'type' => 'text',
+		'class' => $gatewayPorticoClasses,
+	),
     // Portico Settings
     array(
         'name' => 'public_api_key',
