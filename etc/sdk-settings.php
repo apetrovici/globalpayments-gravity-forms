@@ -2,7 +2,7 @@
 
 $gatewayPorticoClasses = 'medium gateway-setting gateway-portico';
 $gatewayTransitClasses = 'medium gateway-setting gateway-transit';
-$gatewayTransitClasses = 'medium gateway-setting gateway-gpapi';
+$gatewayGPApiClasses = 'medium gateway-setting gateway-gpapi';
 
 return array(
     array(
@@ -28,17 +28,24 @@ return array(
     ),
 	// GP api settings
 	array(
-		'name' => 'public_api_key',
-		'label' => __('Public Key', 'global-payments-gateway-provider-for-gravity-forms'),
+		'name' => 'app_id_gpapi',
+		'label' => __('GP App Id', 'global-payments-gateway-provider-for-gravity-forms'),
 		'type' => 'text',
-		'class' => $gatewayPorticoClasses,
+		'class' => $gatewayGPApiClasses,
 	),
 	array(
-		'name' => 'secret_api_key',
-		'label' => __('Secret Key', 'global-payments-gateway-provider-for-gravity-forms'),
+		'name' => 'app_key_gpapi',
+		'label' => __('GP App Key', 'global-payments-gateway-provider-for-gravity-forms'),
 		'type' => 'text',
-		'class' => $gatewayPorticoClasses,
+		'class' => $gatewayGPApiClasses,
 	),
+	array(
+		'name' => 'contact_url_gpapi',
+		'label' => __('Contact Url', 'global-payments-gateway-provider-for-gravity-forms'),
+		'type' => 'text',
+		'class' => $gatewayGPApiClasses,
+	),
+
     // Portico Settings
     array(
         'name' => 'public_api_key',
