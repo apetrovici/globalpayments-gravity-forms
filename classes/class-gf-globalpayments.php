@@ -5,6 +5,9 @@ use GlobalPayments\Api\Entities\Exceptions\ApiException;
 use GlobalPayments\PaymentGatewayProvider\Data\Order;
 use GlobalPayments\PaymentGatewayProvider\Gateways\HeartlandGateway;
 use GlobalPayments\PaymentGatewayProvider\Gateways\TransitGateway;
+use GlobalPayments\PaymentGatewayProvider\Gateways\GpApiGateway;
+use GlobalPayments\PaymentGatewayProvider\Requests\TransactionType;
+
 
 GFForms::include_payment_addon_framework();
 
@@ -17,6 +20,10 @@ class GFGlobalPayments extends GFPaymentAddOn
     private $processPaymentsFor = array( 'gpcreditcard' );
     private $ccFields = array( 'gpcreditcard' );
 
+    /**
+     * GATEWAY FOR PAYMENT
+    */
+    public $gateway;
     /**
      * @var bool
      */
@@ -155,6 +162,27 @@ class GFGlobalPayments extends GFPaymentAddOn
 
         add_filter('gform_add_field_buttons', array($this, 'gp_add_cc_field'));
         add_action('gform_editor_js_set_default_values', array($this, 'set_defaults'));
+
+
+	    /**
+	     * //todo: add the endpoints for 3ds
+	     */
+	    add_action( 'gform_globalpayments_threedsecure_checkenrollment', array(
+		    $this,
+		    'process_threeDSecure_checkEnrollment'
+	    ) );
+	    add_action( 'gform_globalpayments_threedsecure_methodnotification', array(
+		    $this,
+		    'process_threeDSecure_methodNotification'
+	    ) );
+	    add_action( 'gform_globalpayments_threedsecure_initiateauthentication', array(
+		    $this,
+		    'process_threeDSecure_initiateAuthentication'
+	    ) );
+	    add_action( 'gform_globalpayments_threedsecure_challengenotification', array(
+		    $this,
+		    'process_threeDSecure_challengeNotification'
+	    ) );
     }
 
     public function set_defaults()
@@ -302,7 +330,7 @@ class GFGlobalPayments extends GFPaymentAddOn
         $scripts = array(
             array(
                 'handle' => 'globalpayments_js',
-                'src' => 'https://api2.heartlandportico.com/SecureSubmit.v1/token/gp-1.6.0/globalpayments.js',
+                'src' => 'https://js.globalpay.com/v1/globalpayments.js',
                 'version' => $this->_version,
                 'deps' => array(),
                 'enqueue' => array(
@@ -463,7 +491,7 @@ class GFGlobalPayments extends GFPaymentAddOn
      *
      * @return array
      */
-    public function maybe_validate($validationResult)
+    public function maybe_validate($validationResult, $context = 'api-submit')
     {
         if (!$this->has_feed($validationResult['form']['id'], true)) {
             return $validationResult;
@@ -569,6 +597,10 @@ class GFGlobalPayments extends GFPaymentAddOn
      */
     public function authorize($feed, $submission_data, $form, $entry)
     {
+
+        //print_r($submission_data);
+        //die();
+
         $auth = array(
             'is_authorized' => false,
             'captured_payment' => array('is_success' => false),
@@ -606,9 +638,9 @@ class GFGlobalPayments extends GFPaymentAddOn
             $order->cardData = $response;
 
             $transaction = $gateway->processPayment($order);
-            
+
             //reverse incase of avs/cvv failure
-            $this->checkAvsCvvResults($transaction, $submission_data['payment_amount']);            
+            $this->checkAvsCvvResults($transaction, $submission_data['payment_amount']);
 
             do_action('globalpayments_gravityforms_transaction_success', $form, $entry, $transaction, $response);
             self::get_instance()->transaction_response = $transaction;
@@ -975,22 +1007,40 @@ class GFGlobalPayments extends GFPaymentAddOn
         $gatewayType = (string)trim($this->get_setting('gateway_type', '', $settings));
         $is_sandbox_mode = (string)trim($this->get_setting('is_sandbox_mode', '', $settings));
 
-        if ($gatewayType === 'transit') {
-            $gateway = new TransitGateway();
-            $gateway->merchantId = (string)trim($this->get_setting('merchant_id', '', $settings));
-            $gateway->username = (string)trim($this->get_setting('username', '', $settings));
-            $gateway->password = (string)trim($this->get_setting('password', '', $settings));
-            $gateway->deviceId = (string)trim($this->get_setting('device_id', '', $settings));
-            $gateway->tsepDeviceId = (string)trim($this->get_setting('tsep_device_id', '', $settings));
-            $gateway->transactionKey = (string)trim($this->get_setting('transaction_key', '', $settings));
-            $gateway->developerId = (string)trim($this->get_setting('developer_id', '', $settings));
-        } else {
-            $gateway = new HeartlandGateway();
-            $gateway->publicKey = (string)trim($this->get_setting('public_api_key', '', $settings));
-            $gateway->secretKey = (string)trim($this->get_setting('secret_api_key', '', $settings));
+        switch ($gatewayType) {
+            case 'transit':
+	            $gateway = new TransitGateway();
+	            $gateway->merchantId = (string)trim($this->get_setting('merchant_id', '', $settings));
+	            $gateway->username = (string)trim($this->get_setting('username', '', $settings));
+	            $gateway->password = (string)trim($this->get_setting('password', '', $settings));
+	            $gateway->deviceId = (string)trim($this->get_setting('device_id', '', $settings));
+	            $gateway->tsepDeviceId = (string)trim($this->get_setting('tsep_device_id', '', $settings));
+	            $gateway->transactionKey = (string)trim($this->get_setting('transaction_key', '', $settings));
+	            $gateway->developerId = (string)trim($this->get_setting('developer_id', '', $settings));
+                break;
+            case 'gpapi':
+	            $gateway = new GpApiGateway();
+	            // configure gateway settings
+	            $gateway->appId = (string)trim($this->get_setting('app_id_gpapi', '', $settings));
+	            $gateway->appKey = (string)trim($this->get_setting('app_key_gpapi', '', $settings));
+	            $gateway->country = 'US';
+	            $gateway->isProduction = false;
+	            $gateway->methodNotificationUrl = '';
+	            $gateway->challengeNotificationUrl = '';
+	            $gateway->paymentAction = TransactionType::AUTHORIZE;
+                break;
+            default:
+	            $gateway = new HeartlandGateway();
+	            $gateway->publicKey = (string)trim($this->get_setting('public_api_key', '', $settings));
+	            $gateway->secretKey = (string)trim($this->get_setting('secret_api_key', '', $settings));
+                break;
         }
 
-        $gateway->isProduction = $is_sandbox_mode !== 'yes';
+        // is_sandbox_mode is not setted on the admin, always is false. so always ispoduction is true
+        // $gateway->isProduction = $is_sandbox_mode !== 'yes';
+
+        $this->gateway = $gateway;
+
         return $gateway;
     }
 
@@ -1198,7 +1248,7 @@ class GFGlobalPayments extends GFPaymentAddOn
             }
         }
     }
-    
+
     /**
      * @return array
      */
@@ -1206,24 +1256,24 @@ class GFGlobalPayments extends GFPaymentAddOn
     {
         return include plugin_dir_path(__DIR__) . 'etc/avs-cvv-settings.php';
     }
-    
+
     public function checkAvsCvvResults($transaction, $amount){
         $settings = $this->get_plugin_settings();
         $checkAvsCvv = $this->get_setting("check_avs_cvv", '', $settings);
-        if($checkAvsCvv === 'yes'){      
-            $avsRejectConditions = $this->get_setting("avs_reject_conditions", '', $settings);        
+        if($checkAvsCvv === 'yes'){
+            $avsRejectConditions = $this->get_setting("avs_reject_conditions", '', $settings);
             $cvnRejectConditions = $this->get_setting("cvn_reject_conditions", '', $settings);
-            
+
             //reverse incase of AVS/CVN failure
             if(!empty($transaction->transactionReference->transactionId)){
-                if(!empty($transaction->avsResponseCode) || !empty($transaction->cvnResponseCode)){               
+                if(!empty($transaction->avsResponseCode) || !empty($transaction->cvnResponseCode)){
                     //check admin selected decline condtions
                     if(in_array($transaction->avsResponseCode, $avsRejectConditions) ||
                     in_array($transaction->cvnResponseCode, $cvnRejectConditions)){
                         Transaction::fromId( $transaction->transactionReference->transactionId )
                         ->reverse( $amount )
                         ->execute();
-                        
+
                         throw new Exception('Transaction failed due to AVS/CVV failure. Contact merchant!');
                     }
                 }

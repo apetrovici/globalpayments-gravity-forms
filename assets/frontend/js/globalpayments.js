@@ -64,6 +64,7 @@
 
             this.cardForm.on("token-success", this.globalPaymentsResponseHandler.bind(this));
             this.cardForm.on("token-error", this.globalPaymentsResponseHandler.bind(this));
+            this.cardForm.on("error", this.globalPaymentsResponseHandler.bind(this));
         },
 
         getSubmitButton: function () {
@@ -252,6 +253,7 @@
 
         // Handles tokenization response
         globalPaymentsResponseHandler: function (response) {
+
             if ($('#globalpayments_response').length === 0) {
                 // Clear any potentially lingering elements
                 $('#globalpayments_response').remove();

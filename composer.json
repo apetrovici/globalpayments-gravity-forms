@@ -4,7 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
-        "globalpayments/php-sdk": "^2.2",
+        "globalpayments/php-sdk": "5.0.3",
         "globalpayments/payment-gateway-provider": "*"
     },
     "require-dev": {
