@@ -165,25 +165,60 @@ class GFGlobalPayments extends GFPaymentAddOn
 
 
 	    /**
-	     * //todo: add the endpoints for 3ds
+	     * //the wp endpoints for 3ds
 	     */
-	    add_action( 'gform_globalpayments_threedsecure_checkenrollment', array(
-		    $this,
-		    'process_threeDSecure_checkEnrollment'
-	    ) );
-	    add_action( 'gform_globalpayments_threedsecure_methodnotification', array(
-		    $this,
-		    'process_threeDSecure_methodNotification'
-	    ) );
-	    add_action( 'gform_globalpayments_threedsecure_initiateauthentication', array(
-		    $this,
-		    'process_threeDSecure_initiateAuthentication'
-	    ) );
-	    add_action( 'gform_globalpayments_threedsecure_challengenotification', array(
-		    $this,
-		    'process_threeDSecure_challengeNotification'
-	    ) );
+
+	    add_action( 'rest_api_init', function () {
+	        register_rest_route( 'gpapi', 'process_threeDSecure_checkEnrollment', array(
+			    'methods'  => 'GET',
+			    /*'callback' => function () {
+			        // we can use here instead of calling a function also
+                },*/
+                'callback' => [$this, 'process_threeDSecure_checkEnrollment']
+		    ) );
+	    } );
+	    add_action( 'rest_api_init', function () {
+		    register_rest_route( 'gpapi', 'process_threeDSecure_methodNotification', array(
+			    'methods'  => 'GET',
+			    'callback' => [$this, 'process_threeDSecure_methodNotification']
+		    ) );
+	    } );
+	    add_action( 'rest_api_init', function () {
+		    register_rest_route( 'gpapi', 'process_threeDSecure_initiateAuthentication', array(
+			    'methods'  => 'GET',
+			    'callback' => [$this, 'process_threeDSecure_initiateAuthentication']
+		    ) );
+	    } );
+	    add_action( 'rest_api_init', function () {
+		    register_rest_route( 'gpapi', 'process_threeDSecure_challengeNotification', array(
+			    'methods'  => 'GET',
+			    'callback' => [$this, 'process_threeDSecure_challengeNotification']
+		    ) );
+	    } );
+
     }
+
+    public function process_threeDSecure_checkEnrollment(){
+	    $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_checkEnrollment';
+        var_dump( $url );
+        die();
+    }
+	public function process_threeDSecure_methodNotification(){
+		$url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_methodNotification';
+		var_dump( $url );
+		die();
+	}
+	public function process_threeDSecure_initiateAuthentication(){
+		$url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_initiateAuthentication';
+		var_dump( $url );
+		die();
+	}
+	public function process_threeDSecure_challengeNotification(){
+		$url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_challengeNotification';
+		var_dump( $url );
+		die();
+	}
+
 
     public function set_defaults()
     {
