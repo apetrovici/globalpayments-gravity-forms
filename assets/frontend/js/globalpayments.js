@@ -65,6 +65,15 @@
             this.cardForm.on("token-success", this.globalPaymentsResponseHandler.bind(this));
             this.cardForm.on("token-error", this.globalPaymentsResponseHandler.bind(this));
             this.cardForm.on("error", this.globalPaymentsResponseHandler.bind(this));
+
+            // add 3ds event when click submit
+            console.log($('.gform_wrapper input[type="submit"]'));
+            
+            $('.gform_wrapper input[type="submit"]').on( "click", function(e) {
+                e.preventDefault();
+                console.log( 'click pay now button');
+            });
+
         },
 
         getSubmitButton: function () {

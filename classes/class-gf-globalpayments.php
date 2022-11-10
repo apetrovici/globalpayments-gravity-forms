@@ -8,7 +8,6 @@ use GlobalPayments\PaymentGatewayProvider\Gateways\TransitGateway;
 use GlobalPayments\PaymentGatewayProvider\Gateways\GpApiGateway;
 use GlobalPayments\PaymentGatewayProvider\Requests\TransactionType;
 
-
 GFForms::include_payment_addon_framework();
 
 /**
@@ -163,64 +162,164 @@ class GFGlobalPayments extends GFPaymentAddOn
         add_filter('gform_add_field_buttons', array($this, 'gp_add_cc_field'));
         add_action('gform_editor_js_set_default_values', array($this, 'set_defaults'));
 
+        wp_enqueue_script(
+		    'globalpayments-threedsecure-lib',
+		    $this->get_base_url() . '/../assets/frontend/js/globalpayments-3ds.js',
+		    array( 'globalpayments-secure-payment-fields-lib' ),
+		    $this->_version,
+		    true
+	    );
+
+	    wp_localize_script(
+		    'globalpayments-threedsecure-lib',
+		    'globalpayments_secure_payment_threedsecure_params',
+		    array(
+			    'threedsecure' => array(
+				    'methodNotificationUrl'     => get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_methodNotification',
+				    'challengeNotificationUrl'  => get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_challengeNotification',
+				    'checkEnrollmentUrl'        => get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_checkEnrollment',
+				    'initiateAuthenticationUrl' => get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_initiateAuthentication',
+				    //'ajaxCheckoutUrl'           => \WC_AJAX::get_endpoint( 'checkout' ),
+				    'ajaxCheckoutUrl'           => 'gravity ajax endpoint ?',
+                )
+            )
+        );
+
 
 	    /**
 	     * //the wp endpoints for 3ds
 	     */
-
+        // example : url : $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_checkEnrollment';
 	    add_action( 'rest_api_init', function () {
 	        register_rest_route( 'gpapi', 'process_threeDSecure_checkEnrollment', array(
 			    'methods'  => 'GET',
-			    /*'callback' => function () {
-			        // we can use here instead of calling a function also
-                },*/
                 'callback' => [$this, 'process_threeDSecure_checkEnrollment']
 		    ) );
 	    } );
-	    add_action( 'rest_api_init', function () {
-		    register_rest_route( 'gpapi', 'process_threeDSecure_methodNotification', array(
-			    'methods'  => 'GET',
-			    'callback' => [$this, 'process_threeDSecure_methodNotification']
-		    ) );
-	    } );
+
 	    add_action( 'rest_api_init', function () {
 		    register_rest_route( 'gpapi', 'process_threeDSecure_initiateAuthentication', array(
 			    'methods'  => 'GET',
 			    'callback' => [$this, 'process_threeDSecure_initiateAuthentication']
 		    ) );
 	    } );
+
+	    add_action( 'rest_api_init', function () {
+		    register_rest_route( 'gpapi', 'process_threeDSecure_methodNotification', array(
+			    'methods'  => 'POST',
+			    'callback' => [$this, 'process_threeDSecure_methodNotification']
+		    ) );
+	    } );
+
 	    add_action( 'rest_api_init', function () {
 		    register_rest_route( 'gpapi', 'process_threeDSecure_challengeNotification', array(
-			    'methods'  => 'GET',
+			    'methods'  => 'POST',
 			    'callback' => [$this, 'process_threeDSecure_challengeNotification']
 		    ) );
 	    } );
 
     }
 
-    public function process_threeDSecure_checkEnrollment(){
-	    $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_checkEnrollment';
-        var_dump( $url );
-        die();
+    public function process_threeDSecure_checkEnrollment($request){
+        // $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_checkEnrollment';
+	    try {
+		    $request  = $this->prepareRequest(parent::TXN_TYPE_CHECK_ENROLLMENT );
+		    $this->submitRequest($request);
+	    } catch ( \Exception $e ) {
+		    echo json_encode( [
+			    'error'    => true,
+			    'message'  => $e->getMessage(),
+			    'enrolled' => CheckEnrollmentRequest::NO_RESPONSE,
+		    ] );
+	    }
     }
-	public function process_threeDSecure_methodNotification(){
-		$url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_methodNotification';
-		var_dump( $url );
-		die();
+
+    public function process_threeDSecure_initiateAuthentication($request){
+        // $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_initiateAuthentication';
+	    try {
+		    $request = $this->prepareRequest( parent::TXN_TYPE_INITIATE_AUTHENTICATION );
+		    $this->submitRequest($request);
+	    } catch ( \Exception $e ) {
+		    echo json_encode( [
+			    'error'   => true,
+			    'message' => $e->getMessage(),
+		    ] );
+	    }
+    }
+
+	public function process_threeDSecure_methodNotification($request){
+		// $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_methodNotification';
+
+		if ( ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) ) {
+			return;
+		}
+		if ( 'application/x-www-form-urlencoded' !== $_SERVER['CONTENT_TYPE'] ) {
+			return;
+		}
+
+		$convertedThreeDSMethodData = json_decode( base64_decode( $_POST['threeDSMethodData'] ) ) ;
+		$response                   = json_encode( [
+			'threeDSServerTransID' => $convertedThreeDSMethodData->threeDSServerTransID,
+		] );
+
+		wp_enqueue_script(
+			'globalpayments-threedsecure-lib',
+			Plugin::get_url( '/assets/frontend/js/globalpayments-3ds' )
+			. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' ) . '.js'
+		);
+		wp_add_inline_script( 'globalpayments-threedsecure-lib', 'GlobalPayments.ThreeDSecure.handleMethodNotification(' . $response . ');' );
+		wp_print_scripts();
+		exit();
 	}
-	public function process_threeDSecure_initiateAuthentication(){
-		$url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_initiateAuthentication';
-		var_dump( $url );
-		die();
-	}
-	public function process_threeDSecure_challengeNotification(){
-		$url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_challengeNotification';
-		var_dump( $url );
-		die();
+
+	public function process_threeDSecure_challengeNotification($request){
+		// $url = get_site_url() . '/?rest_route=/gpapi/process_threeDSecure_challengeNotification';
+
+		if ( ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) ) {
+			return;
+		}
+		if ( 'application/x-www-form-urlencoded' !== $_SERVER['CONTENT_TYPE'] ) {
+			return;
+		}
+
+		try {
+			$response = new \stdClass();
+
+			if ( isset( $_POST['cres'] ) ) {
+				$convertedCRes = json_decode( base64_decode( $_POST['cres'] ) );
+
+				$response = json_encode( [
+					'threeDSServerTransID' => $convertedCRes->threeDSServerTransID,
+					'transStatus'          => $convertedCRes->transStatus ?? '',
+				] );
+			}
+
+			if ( isset( $_POST['PaRes'] ) ) {
+				$response = json_encode( [
+					'MD'    => $_POST['MD'] ,
+					'PaRes' => $_POST['PaRes'],
+				], JSON_UNESCAPED_SLASHES );
+			}
+			wp_enqueue_script(
+				'globalpayments-threedsecure-lib',
+				Plugin::get_url( '/assets/frontend/js/globalpayments-3ds' )
+				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' ) . '.js'
+			);
+			wp_add_inline_script( 'globalpayments-threedsecure-lib', 'GlobalPayments.ThreeDSecure.handleChallengeNotification(' . $response . ');' );
+			wp_print_scripts();
+			exit();
+
+		} catch ( Exception $e ) {
+			wp_send_json( [
+				'error'   => true,
+				'message' => $e->getMessage(),
+			] );
+		}
 	}
 
 
-    public function set_defaults()
+
+	public function set_defaults()
     {
         // this hook is fired in the middle of a JavaScript switch statement,
         // so we need to add a case for our new field types
@@ -386,6 +485,19 @@ class GFGlobalPayments extends GFPaymentAddOn
                     array($this, 'hasFeedCallback'),
                 ),
             ),
+
+	        array(
+		        'handle' => 'globalpayments-threedsecure-lib',
+		        'src' => $this->get_base_url() . '/../assets/frontend/js/globalpayments-3ds.js',
+		        'version' => $this->_version,
+		        'deps' => array('jquery', 'globalpayments_js','gforms_globalpayments_frontend'),
+		        'in_footer' => false,
+		        'enqueue' => array(
+			        array($this, 'hasFeedCallback'),
+		        ),
+	        ),
+
+
             array(
                 'handle' => 'gform_json',
                 'src' => GFCommon::get_base_url() . '/js/jquery.json-1.3.js',
@@ -632,10 +744,6 @@ class GFGlobalPayments extends GFPaymentAddOn
      */
     public function authorize($feed, $submission_data, $form, $entry)
     {
-
-        //print_r($submission_data);
-        //die();
-
         $auth = array(
             'is_authorized' => false,
             'captured_payment' => array('is_success' => false),
